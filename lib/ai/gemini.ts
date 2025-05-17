@@ -1,33 +1,24 @@
-import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from "@google/genai"
+import {
+  GoogleGenAI,
+  HarmBlockThreshold,
+  HarmCategory,
+  GenerateContentResponse,
+  // Content, // generateContentのcontentsは string | Part | (string | Part)[] で渡せるため、直接Content型を使う必要は少ない
+  // Part,    // 同上
+  Type,
+  SafetySetting,
+  GenerationConfig,
+  GenerateContentParameters, // GenerateContentの引数の型
+} from "@google/genai";
 
 // APIキーの取得
-const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY
+const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
 
 // Google AI SDKの初期化
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null
+const genAI = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 // モデルの設定
-const modelName = "gemini-1.5-pro"
-
-// 安全性設定
-const safetySettings = [
-  {
-    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-]
+const modelName = "gemini-2.0-flash";
 
 // フラッシュカード生成用のプロンプト
 export const generateFlashcardsPrompt = (
@@ -35,7 +26,7 @@ export const generateFlashcardsPrompt = (
   cardType: string,
   language: string,
   additionalPrompt?: string,
-) => {
+): string => {
   const basePrompt = `
 あなたは教育コンテンツの専門家です。以下の内容から効果的なフラッシュカードを作成してください。
 
@@ -49,78 +40,67 @@ export const generateFlashcardsPrompt = (
 - 参照や引用がある場合は、それらを適切に処理してください。
 
 ## カード形式
-`
+`;
 
-  let formatPrompt = ""
+  let formatPrompt = "";
 
   switch (cardType) {
     case "term-definition":
       formatPrompt = `
 - 表面: 重要な用語、概念、または名前
 - 裏面: その用語の定義、説明、または重要性
-`
-      break
+`;
+      break;
     case "qa":
       formatPrompt = `
 - 表面: 質問形式で内容を問う
 - 裏面: 質問に対する回答
-`
-      break
+`;
+      break;
     case "image-description":
       formatPrompt = `
 - 表面: 画像に関する説明や質問（画像がある場合）
 - 裏面: 説明の詳細または質問の回答
-`
-      break
+`;
+      break;
     default:
       formatPrompt = `
 - 表面: 重要な用語、概念、または名前
 - 裏面: その用語の定義、説明、または重要性
-`
+`;
   }
 
-  let languagePrompt = ""
+  let languagePrompt = "";
 
   switch (language) {
     case "japanese":
-      languagePrompt = "- すべてのカードは日本語で作成してください。"
-      break
+      languagePrompt = "- すべてのカードは日本語で作成してください。";
+      break;
     case "english":
-      languagePrompt = "- すべてのカードは英語で作成してください。"
-      break
+      languagePrompt = "- すべてのカードは英語で作成してください。";
+      break;
     case "mixed":
-      languagePrompt = "- 元の内容の言語に合わせてカードを作成してください。"
-      break
+      languagePrompt = "- 元の内容の言語に合わせてカードを作成してください。";
+      break;
     default:
-      languagePrompt = "- 元の内容の言語に合わせてカードを作成してください。"
+      languagePrompt = "- 元の内容の言語に合わせてカードを作成してください。";
   }
 
-  const additionalInstructions = additionalPrompt ? `\n## 追加指示\n${additionalPrompt}` : ""
+  const additionalInstructions = additionalPrompt
+    ? `\n## 追加指示\n${additionalPrompt}`
+    : "";
 
-  const outputFormatPrompt = `
-## 出力形式
-以下のJSON形式で出力してください：
+  const outputFormatInstruction = `
+JSON形式で、各カードが "front" と "back" のキーを持つオブジェクトの配列として "cards" というキーの中に格納されるようにしてください。
+`;
 
-{
-  "cards": [
-    {
-      "front": "カードの表面のテキスト",
-      "back": "カードの裏面のテキスト"
-    },
-    ...
-  ]
-}
+  const fullPrompt = `${basePrompt}${formatPrompt}\n${languagePrompt}${additionalInstructions}\n\n## 内容\n${content}\n${outputFormatInstruction}`;
 
-他の説明や前置きは不要です。JSONのみを出力してください。
-`
-
-  const fullPrompt = `${basePrompt}${formatPrompt}\n${languagePrompt}${additionalInstructions}\n\n## 内容\n${content}\n${outputFormatPrompt}`
-
-  return fullPrompt
-}
+  return fullPrompt;
+};
 
 // ヒント生成用のプロンプト
-export const generateHintPrompt = (front: string, back: string) => {
+export const generateHintPrompt = (front: string, back: string): string => {
   return `
 あなたは教育支援AIです。以下のフラッシュカードの内容に基づいて、学習者向けのヒントを作成してください。
 
@@ -135,11 +115,11 @@ export const generateHintPrompt = (front: string, back: string) => {
 - 1〜3文程度の長さにしてください。
 
 ヒントのみを出力してください。前置きや説明は不要です。
-`
-}
+`;
+};
 
 // 詳細説明生成用のプロンプト
-export const generateDetailsPrompt = (front: string, back: string) => {
+export const generateDetailsPrompt = (front: string, back: string): string => {
   return `
 あなたは教育コンテンツの専門家です。以下のフラッシュカードの内容に基づいて、詳細な説明を作成してください。
 
@@ -155,7 +135,12 @@ export const generateDetailsPrompt = (front: string, back: string) => {
 - 300〜500単語程度の説明を作成してください。
 
 詳細説明のみを出力してください。前置きや説明は不要です。
-`
+`;
+};
+
+interface Flashcard {
+  front: string;
+  back: string;
 }
 
 // フラッシュカード生成関数
@@ -164,125 +149,182 @@ export const generateFlashcards = async (
   cardType: string,
   language: string,
   additionalPrompt?: string,
-) => {
+): Promise<Flashcard[]> => {
   if (!genAI) {
-    throw new Error("Google AI APIキーが設定されていません")
+    throw new Error("Google AI APIキーが設定されていません");
   }
 
   try {
-    const model = genAI.getGenerativeModel({
+    const prompt = generateFlashcardsPrompt(
+      content,
+      cardType,
+      language,
+      additionalPrompt,
+    );
+
+    console.log("Gemini API呼び出し開始 (generateFlashcards)");
+
+    const params: GenerateContentParameters = { // GenerateContentParameters 型を明示
       model: modelName,
-      safetySettings,
-    })
+      contents: [{ parts: [{ text: prompt }], role: "user" }],
+      config: { // generationConfig をトップレベルに配置
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            cards: {
+              type: Type.ARRAY,
+              description: "生成されたフラッシュカードの配列",
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  front: {
+                    type: Type.STRING,
+                    description: "カードの表面のテキスト",
+                  },
+                  back: {
+                    type: Type.STRING,
+                    description: "カードの裏面のテキスト",
+                  },
+                },
+                required: ["front", "back"],
+              },
+            },
+          },
+          required: ["cards"],
+        },
+        // 必要に応じて他の generationConfig パラメータ (temperature, topK など) を追加
+      },
+    };
 
-    const prompt = generateFlashcardsPrompt(content, cardType, language, additionalPrompt)
+    const result: GenerateContentResponse = await genAI.models.generateContent(params);
+    console.log("Gemini API呼び出し完了 (generateFlashcards)");
 
-    console.log("Gemini API呼び出し開始")
-    const result = await model.generateContent(prompt)
-    console.log("Gemini API呼び出し完了")
-
-    const response = result.response
-    const text = response.text()
-    console.log("Gemini APIレスポンス:", text.substring(0, 200) + "...")
-
-    // JSONを解析
-    try {
-      // JSONを抽出するための正規表現パターン
-      const jsonPattern = /\{[\s\S]*\}/g
-      const jsonMatch = text.match(jsonPattern)
-
-      if (!jsonMatch) {
-        console.error("JSONが見つかりませんでした。レスポンス全文:", text)
-
-        // JSONが見つからない場合は、テキストから簡易的にカードを生成
-        const lines = text.split("\n").filter((line) => line.trim() !== "")
-        const cards = []
-
-        for (let i = 0; i < lines.length; i += 2) {
-          if (i + 1 < lines.length) {
-            cards.push({
-              front: lines[i].replace(/^[Q\d.\-*]+[\s:]+/g, "").trim(),
-              back: lines[i + 1].replace(/^[A\d.\-*]+[\s:]+/g, "").trim(),
-            })
-          }
-        }
-
-        if (cards.length > 0) {
-          console.log("テキストから簡易的にカードを生成しました:", cards.length + "枚")
-          return cards
-        }
-
-        throw new Error("JSONが見つかりませんでした")
+    const text = result.text;
+    if (!text) {
+      console.error("Gemini APIからのレスポンスが空です。", result);
+      if (result.candidates && result.candidates[0].finishReason !== 'STOP' && result.candidates[0].finishReason !== 'MAX_TOKENS') {
+        throw new Error(`モデルが正常に完了しませんでした: ${result.candidates[0].finishReason}. ${result.candidates[0].finishMessage || ''}`);
       }
-
-      const jsonText = jsonMatch[0]
-      console.log("抽出されたJSON:", jsonText.substring(0, 200) + "...")
-
-      try {
-        const data = JSON.parse(jsonText)
-        console.log("解析されたJSONデータ:", JSON.stringify(data).substring(0, 200) + "...")
-
-        if (!data.cards || !Array.isArray(data.cards)) {
-          throw new Error("有効なカードデータが見つかりませんでした")
-        }
-
-        return data.cards
-      } catch (jsonError) {
-        console.error("JSON解析エラー:", jsonError)
-        throw new Error("フラッシュカードの生成結果を解析できませんでした")
-      }
-    } catch (error) {
-      console.error("JSON解析エラー:", error)
-      throw new Error("フラッシュカードの生成結果を解析できませんでした")
+      throw new Error("モデルからのレスポンスが空でした");
     }
-  } catch (error) {
-    console.error("Gemini APIエラー:", error)
-    throw error
+
+    console.log(
+      "Gemini APIレスポンス (generateFlashcards):",
+      text.substring(0, 200) + "...",
+    );
+
+    try {
+      const data = JSON.parse(text);
+      console.log(
+        "解析されたJSONデータ (generateFlashcards):",
+        JSON.stringify(data).substring(0, 200) + "...",
+      );
+
+      if (!data.cards || !Array.isArray(data.cards)) {
+        console.error("レスポンスに有効な 'cards' 配列が含まれていません。レスポンス:", data);
+        throw new Error("有効なカードデータ (cards配列) がレスポンスに含まれていませんでした");
+      }
+
+      const validatedCards = data.cards.filter(
+        (card: any): card is Flashcard =>
+          typeof card === 'object' &&
+          card !== null &&
+          typeof card.front === 'string' &&
+          typeof card.back === 'string'
+      );
+
+      if (validatedCards.length !== data.cards.length) {
+        console.warn("一部のカードが無効な形式でした。フィルタリング後のカード数:", validatedCards.length);
+      }
+      if (validatedCards.length === 0 && data.cards.length > 0) {
+        throw new Error("有効な形式のカードデータが1件も見つかりませんでした。");
+      }
+      if (validatedCards.length === 0 && data.cards.length === 0) {
+        console.warn("モデルはカードを生成しませんでした。");
+        return [];
+      }
+
+      return validatedCards;
+    } catch (jsonError: any) {
+      console.error("JSON解析エラー (generateFlashcards):", jsonError);
+      console.error("エラーが発生したレスポンステキスト:", text);
+      throw new Error(`フラッシュカードの生成結果を解析できませんでした: ${jsonError.message}`);
+    }
+  } catch (error: any) {
+    console.error("Gemini APIエラー (generateFlashcards):", error);
+    throw new Error(`Gemini APIエラー: ${error.message || error}`);
   }
-}
+};
 
 // ヒント生成関数
-export const generateHint = async (front: string, back: string) => {
+export const generateHint = async (front: string, back: string): Promise<string> => {
   if (!genAI) {
-    throw new Error("Google AI APIキーが設定されていません")
+    throw new Error("Google AI APIキーが設定されていません");
   }
 
   try {
-    const model = genAI.getGenerativeModel({
+    const prompt = generateHintPrompt(front, back);
+    console.log("Gemini API呼び出し開始 (generateHint)");
+
+    const params: GenerateContentParameters = { // GenerateContentParameters 型を明示
       model: modelName,
-      safetySettings,
-    })
+      contents: [{ parts: [{ text: prompt }], role: "user" }],
+      // safetySettings, // safetySettings をトップレベルに配置
+      // generationConfig: { // 必要であれば他の設定を追加
+      //   // temperature: 0.7,
+      // }
+    };
 
-    const prompt = generateHintPrompt(front, back)
-    const result = await model.generateContent(prompt)
-    const response = result.response
+    const result: GenerateContentResponse = await genAI.models.generateContent(params);
+    console.log("Gemini API呼び出し完了 (generateHint)");
 
-    return response.text().trim()
-  } catch (error) {
-    console.error("Gemini APIエラー:", error)
-    throw error
+    if (!result.text) {
+      console.error("Gemini APIからのヒントレスポンスが空です。", result);
+      if (result.candidates && result.candidates[0].finishReason !== 'STOP') {
+         throw new Error(`モデルが正常に完了しませんでした (ヒント生成): ${result.candidates[0].finishReason}. ${result.candidates[0].finishMessage || ''}`);
+      }
+      throw new Error("モデルからのヒントレスポンスが空でした");
+    }
+    return result.text.trim();
+  } catch (error: any) {
+    console.error("Gemini APIエラー (generateHint):", error);
+    throw new Error(`Gemini APIエラー (ヒント生成): ${error.message || error}`);
   }
-}
+};
 
 // 詳細説明生成関数
-export const generateDetails = async (front: string, back: string) => {
+export const generateDetails = async (front: string, back: string): Promise<string> => {
   if (!genAI) {
-    throw new Error("Google AI APIキーが設定されていません")
+    throw new Error("Google AI APIキーが設定されていません");
   }
 
   try {
-    const model = genAI.getGenerativeModel({
+    const prompt = generateDetailsPrompt(front, back);
+    console.log("Gemini API呼び出し開始 (generateDetails)");
+
+    const params: GenerateContentParameters = { // GenerateContentParameters 型を明示
       model: modelName,
-      safetySettings,
-    })
+      contents: [{ parts: [{ text: prompt }], role: "user" }],
+      // safetySettings, // safetySettings をトップレベルに配置
+      // generationConfig: { // 必要であれば他の設定を追加
+      //   // temperature: 0.7,
+      // }
+    };
 
-    const prompt = generateDetailsPrompt(front, back)
-    const result = await model.generateContent(prompt)
-    const response = result.response
+    const result: GenerateContentResponse = await genAI.models.generateContent(params);
+    console.log("Gemini API呼び出し完了 (generateDetails)");
 
-    return response.text().trim()
-  } catch (error) {
-    console.error("Gemini APIエラー:", error)
-    throw error
+    if (!result.text) {
+      console.error("Gemini APIからの詳細説明レスポンスが空です。", result);
+       if (result.candidates && result.candidates[0].finishReason !== 'STOP') {
+         throw new Error(`モデルが正常に完了しませんでした (詳細説明生成): ${result.candidates[0].finishReason}. ${result.candidates[0].finishMessage || ''}`);
+      }
+      throw new Error("モデルからの詳細説明レスポンスが空でした");
+    }
+    return result.text.trim();
+  } catch (error: any) {
+    console.error("Gemini APIエラー (generateDetails):", error);
+    throw new Error(`Gemini APIエラー (詳細説明生成): ${error.message || error}`);
   }
-}
+};
