@@ -22,7 +22,7 @@ export default function GeneratePage() {
     generate: {
       inputType,
       inputValue,
-      generationOptions,
+      // generationOptions, // ESLint修正: 未使用のため削除
       previewCards,
       isLoading,
       error,
@@ -63,13 +63,19 @@ export default function GeneratePage() {
     }
 
     try {
-      const cardSetId = await addCardSet({
+      await addCardSet({
         name: cardSetName,
         theme: cardSetTheme,
         tags: cardSetTags,
         cards: previewCards,
         sourceType: inputType || undefined,
         sourceValue: inputValue,
+        // TypeScriptエラー(ts2345)修正: 不足していたプロパティを追加
+        totalCards: previewCards.length,
+        masteredCards: 0,
+        learningCards: 0,
+        newCards: previewCards.length,
+        studySessionCount: 0,
       })
 
       toast({

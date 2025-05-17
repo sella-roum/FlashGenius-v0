@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react" // ESLint修正: useMemo をインポート
 import { useSearchParams, useRouter } from "next/navigation"
 import { useStore } from "@/lib/store"
 import { useIndexedDB } from "@/lib/hooks/use-indexed-db"
@@ -14,7 +14,10 @@ import { Button } from "@/components/ui/button"
 export default function StudyPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const setIds = searchParams.get("setIds")?.split(",") || []
+  // ESLint修正: setIds の初期化を useMemo でラップ
+  const setIds = useMemo(() => {
+    return searchParams.get("setIds")?.split(",") || []
+  }, [searchParams])
 
   const { getCardSetById } = useIndexedDB()
   const {

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+// import { useRouter } from "next/navigation" // ESLint修正: 未使用のため削除
 import type { CardSet } from "@/types"
 import { useIndexedDB } from "@/lib/hooks/use-indexed-db"
 import { useToast } from "@/hooks/use-toast"
@@ -27,7 +27,7 @@ interface CardSetItemProps {
 }
 
 export const CardSetItem = ({ cardSet }: CardSetItemProps) => {
-  const router = useRouter()
+  // const router = useRouter() // ESLint修正: 未使用のため削除
   const { toast } = useToast()
   const { deleteCardSet } = useIndexedDB()
   const [isDeleting, setIsDeleting] = useState(false)

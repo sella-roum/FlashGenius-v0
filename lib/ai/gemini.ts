@@ -1,13 +1,13 @@
 import {
   GoogleGenAI,
-  HarmBlockThreshold,
-  HarmCategory,
+  // HarmBlockThreshold, // ESLint修正: 未使用のため削除
+  // HarmCategory, // ESLint修正: 未使用のため削除
   GenerateContentResponse,
   // Content, // generateContentのcontentsは string | Part | (string | Part)[] で渡せるため、直接Content型を使う必要は少ない
   // Part,    // 同上
   Type,
-  SafetySetting,
-  GenerationConfig,
+  // SafetySetting, // ESLint修正: 未使用のため削除
+  // GenerationConfig, // ESLint修正: 未使用のため削除
   GenerateContentParameters, // GenerateContentの引数の型
 } from "@google/genai";
 
@@ -226,13 +226,12 @@ export const generateFlashcards = async (
         throw new Error("有効なカードデータ (cards配列) がレスポンスに含まれていませんでした");
       }
 
-      const validatedCards = data.cards.filter(
-        (card: any): card is Flashcard =>
-          typeof card === 'object' &&
-          card !== null &&
-          typeof card.front === 'string' &&
-          typeof card.back === 'string'
-      );
+      // ESLint修正: any -> unknown, 型ガード追加
+      const validatedCards = data.cards.filter((card: unknown): card is Flashcard => {
+        if (typeof card !== 'object' || card === null) return false;
+        const c = card as Record<string, unknown>;
+        return typeof c.front === 'string' && typeof c.back === 'string';
+      });
 
       if (validatedCards.length !== data.cards.length) {
         console.warn("一部のカードが無効な形式でした。フィルタリング後のカード数:", validatedCards.length);
@@ -246,14 +245,16 @@ export const generateFlashcards = async (
       }
 
       return validatedCards;
-    } catch (jsonError: any) {
+    } catch (jsonError: unknown) { // ESLint修正: any -> unknown
       console.error("JSON解析エラー (generateFlashcards):", jsonError);
       console.error("エラーが発生したレスポンステキスト:", text);
-      throw new Error(`フラッシュカードの生成結果を解析できませんでした: ${jsonError.message}`);
+      const message = jsonError instanceof Error ? jsonError.message : String(jsonError); // ESLint修正: 型ガード
+      throw new Error(`フラッシュカードの生成結果を解析できませんでした: ${message}`);
     }
-  } catch (error: any) {
+  } catch (error: unknown) { // ESLint修正: any -> unknown
     console.error("Gemini APIエラー (generateFlashcards):", error);
-    throw new Error(`Gemini APIエラー: ${error.message || error}`);
+    const message = error instanceof Error ? error.message : String(error); // ESLint修正: 型ガード
+    throw new Error(`Gemini APIエラー: ${message}`);
   }
 };
 
@@ -287,9 +288,10 @@ export const generateHint = async (front: string, back: string): Promise<string>
       throw new Error("モデルからのヒントレスポンスが空でした");
     }
     return result.text.trim();
-  } catch (error: any) {
+  } catch (error: unknown) { // ESLint修正: any -> unknown
     console.error("Gemini APIエラー (generateHint):", error);
-    throw new Error(`Gemini APIエラー (ヒント生成): ${error.message || error}`);
+    const message = error instanceof Error ? error.message : String(error); // ESLint修正: 型ガード
+    throw new Error(`Gemini APIエラー (ヒント生成): ${message}`);
   }
 };
 
@@ -323,8 +325,9 @@ export const generateDetails = async (front: string, back: string): Promise<stri
       throw new Error("モデルからの詳細説明レスポンスが空でした");
     }
     return result.text.trim();
-  } catch (error: any) {
+  } catch (error: unknown) { // ESLint修正: any -> unknown
     console.error("Gemini APIエラー (generateDetails):", error);
-    throw new Error(`Gemini APIエラー (詳細説明生成): ${error.message || error}`);
+    const message = error instanceof Error ? error.message : String(error); // ESLint修正: 型ガード
+    throw new Error(`Gemini APIエラー (詳細説明生成): ${message}`);
   }
 };

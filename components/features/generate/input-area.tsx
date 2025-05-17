@@ -71,7 +71,8 @@ export const InputArea = () => {
           setInputType("file")
           setInputValue(text)
         }
-      } catch (error) {
+      } catch (err) { // ESLint修正: error -> err, console.error追加
+        console.error("File read error:", err);
         toast({
           title: "エラー",
           description: "ファイルの読み込みに失敗しました。",
@@ -102,7 +103,8 @@ export const InputArea = () => {
         title: "URL設定完了",
         description: "URLが設定されました。",
       })
-    } catch (error) {
+    } catch (err) { // ESLint修正: error -> err, console.error追加
+      console.error("Invalid URL:", err);
       toast({
         title: "エラー",
         description: "有効なURLを入力してください。",

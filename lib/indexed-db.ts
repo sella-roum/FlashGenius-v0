@@ -13,7 +13,7 @@ export const openDatabase = (): Promise<IDBDatabase> => {
 
     const request = window.indexedDB.open(DB_NAME, DB_VERSION)
 
-    request.onerror = (event) => {
+    request.onerror = (_event) => { // ESLint修正: event -> _event
       reject(new Error("Failed to open database"))
     }
 
@@ -30,11 +30,12 @@ export const openDatabase = (): Promise<IDBDatabase> => {
 }
 
 // トランザクションを実行
-const runTransaction = (
+// ESLint修正: any -> T, callbackの返り値の型を IDBRequest<T> に変更
+const runTransaction = <T = any>(
   storeName: string,
   mode: IDBTransactionMode,
-  callback: (store: IDBObjectStore) => IDBRequest<any>,
-): Promise<any> => {
+  callback: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> => {
   return new Promise(async (resolve, reject) => {
     try {
       const db = await openDatabase()
@@ -54,7 +55,7 @@ const runTransaction = (
       transaction.oncomplete = () => {
         db.close()
       }
-    } catch (error: any) {
+    } catch (error: unknown) { // ESLint修正: any -> unknown
       reject(error)
     }
   })
@@ -62,16 +63,16 @@ const runTransaction = (
 
 // カードセットの取得
 export const getAllCardSets = (): Promise<CardSet[]> => {
-  return runTransaction(STORES.CARD_SETS, "readonly", (store) => {
+  return runTransaction<CardSet[]>(STORES.CARD_SETS, "readonly", (store) => { // ESLint修正: 型引数指定, as Promise<CardSet[]> 削除
     return store.getAll()
-  }) as Promise<CardSet[]>
+  })
 }
 
 // タグの取得
 export const getAllTags = (): Promise<Tag[]> => {
-  return runTransaction(STORES.TAGS, "readonly", (store) => {
+  return runTransaction<Tag[]>(STORES.TAGS, "readonly", (store) => { // ESLint修正: 型引数指定, as Promise<Tag[]> 削除
     return store.getAll()
-  }) as Promise<Tag[]>
+  })
 }
 
 // テーマの取得
@@ -91,7 +92,7 @@ export const addCardSet = async (cardSet: Omit<CardSet, "id" | "createdAt" | "up
     for (const tagName of cardSet.tags) {
       try {
         await getTagByName(tagName)
-      } catch (error) {
+      } catch (_error) { // ESLint修正: error -> _error
         // タグが存在しない場合は追加
         const tagId = generateId()
         await addTag({ id: tagId, name: tagName })
@@ -129,7 +130,7 @@ export const addCardSet = async (cardSet: Omit<CardSet, "id" | "createdAt" | "up
 
 // タグの追加
 export const addTag = (tag: Tag): Promise<IDBValidKey> => {
-  return runTransaction(STORES.TAGS, "readwrite", (store) => {
+  return runTransaction<IDBValidKey>(STORES.TAGS, "readwrite", (store) => { // ESLint修正: 型引数指定
     return store.add(tag)
   })
 }
@@ -159,7 +160,7 @@ export const getTagByName = (name: string): Promise<Tag> => {
       transaction.oncomplete = () => {
         db.close()
       }
-    } catch (error: any) {
+    } catch (error: unknown) { // ESLint修正: any -> unknown
       reject(error)
     }
   })
@@ -167,9 +168,9 @@ export const getTagByName = (name: string): Promise<Tag> => {
 
 // カードセットの取得（ID指定）
 export const getCardSetById = (id: string): Promise<CardSet | undefined> => {
-  return runTransaction(STORES.CARD_SETS, "readonly", (store) => {
+  return runTransaction<CardSet | undefined>(STORES.CARD_SETS, "readonly", (store) => { // ESLint修正: 型引数指定, as Promise<CardSet | undefined> 削除
     return store.get(id)
-  }) as Promise<CardSet | undefined>
+  })
 }
 
 // カードセットの更新
@@ -188,7 +189,7 @@ export const updateCardSet = async (
     for (const tagName of updates.tags) {
       try {
         await getTagByName(tagName)
-      } catch (error) {
+      } catch (_error) { // ESLint修正: error -> _error
         // タグが存在しない場合は追加
         const tagId = generateId()
         await addTag({ id: tagId, name: tagName })
@@ -267,9 +268,9 @@ export const addCardProgress = async (progress: Omit<CardProgress, "id">): Promi
 
 // カード進捗の取得（全て）
 export const getAllCardProgress = (): Promise<CardProgress[]> => {
-  return runTransaction(STORES.CARD_PROGRESS, "readonly", (store) => {
+  return runTransaction<CardProgress[]>(STORES.CARD_PROGRESS, "readonly", (store) => { // ESLint修正: 型引数指定, as Promise<CardProgress[]> 削除
     return store.getAll()
-  }) as Promise<CardProgress[]>
+  })
 }
 
 // カード進捗の取得（カードID指定）
@@ -286,9 +287,9 @@ export const getCardProgressByCardSetId = async (cardSetId: string): Promise<Car
 
 // カード進捗の更新
 export const updateCardProgress = async (id: string, updates: Partial<Omit<CardProgress, "id">>): Promise<void> => {
-  const currentProgress = (await runTransaction(STORES.CARD_PROGRESS, "readonly", (store) => {
+  const currentProgress = await runTransaction<CardProgress | undefined>(STORES.CARD_PROGRESS, "readonly", (store) => { // ESLint修正: 型引数指定, as Promise<CardProgress | undefined> 削除
     return store.get(id)
-  })) as CardProgress | undefined
+  })
 
   if (!currentProgress) {
     throw new Error(`Card progress with id ${id} not found`)
@@ -305,9 +306,9 @@ export const updateCardProgress = async (id: string, updates: Partial<Omit<CardP
 
 // カード進捗の削除
 export const deleteCardProgress = (id: string): Promise<undefined> => {
-  return runTransaction(STORES.CARD_PROGRESS, "readwrite", (store) => {
+  return runTransaction<undefined>(STORES.CARD_PROGRESS, "readwrite", (store) => { // ESLint修正: 型引数指定, as Promise<undefined> 削除
     return store.delete(id)
-  }) as Promise<undefined>
+  })
 }
 
 // 学習セッションの追加
@@ -326,9 +327,9 @@ export const addStudySession = async (session: Omit<StudySession, "id">): Promis
 
 // 学習セッションの取得（全て）
 export const getAllStudySessions = (): Promise<StudySession[]> => {
-  return runTransaction(STORES.STUDY_SESSIONS, "readonly", (store) => {
+  return runTransaction<StudySession[]>(STORES.STUDY_SESSIONS, "readonly", (store) => { // ESLint修正: 型引数指定, as Promise<StudySession[]> 削除
     return store.getAll()
-  }) as Promise<StudySession[]>
+  })
 }
 
 // 学習セッションの取得（カードセットID指定）
@@ -339,9 +340,9 @@ export const getStudySessionsByCardSetId = async (cardSetId: string): Promise<St
 
 // 学習セッションの更新
 export const updateStudySession = async (id: string, updates: Partial<Omit<StudySession, "id">>): Promise<void> => {
-  const currentSession = (await runTransaction(STORES.STUDY_SESSIONS, "readonly", (store) => {
+  const currentSession = await runTransaction<StudySession | undefined>(STORES.STUDY_SESSIONS, "readonly", (store) => { // ESLint修正: 型引数指定, as Promise<StudySession | undefined> 削除
     return store.get(id)
-  })) as StudySession | undefined
+  })
 
   if (!currentSession) {
     throw new Error(`Study session with id ${id} not found`)
@@ -358,9 +359,9 @@ export const updateStudySession = async (id: string, updates: Partial<Omit<Study
 
 // 学習セッションの削除
 export const deleteStudySession = (id: string): Promise<undefined> => {
-  return runTransaction(STORES.STUDY_SESSIONS, "readwrite", (store) => {
+  return runTransaction<undefined>(STORES.STUDY_SESSIONS, "readwrite", (store) => { // ESLint修正: 型引数指定, as Promise<undefined> 削除
     return store.delete(id)
-  }) as Promise<undefined>
+  })
 }
 
 // カードセットの学習統計を計算

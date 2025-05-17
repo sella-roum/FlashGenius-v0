@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 
 export const StudySession = () => {
   const { toast } = useToast()
-  const [sessionStartTime, setSessionStartTime] = useState<Date>(new Date())
+  // const [sessionStartTime, setSessionStartTime] = useState<Date>(new Date()) // ESLint修正: 未使用のため削除
   const [cardStartTime, setCardStartTime] = useState<Date>(new Date())
   const [sessionId, setSessionId] = useState<string | null>(null)
 
@@ -21,7 +21,7 @@ export const StudySession = () => {
     nextCard,
     previousCard,
     shuffleDeck,
-    flipCard,
+    // flipCard, // ESLint修正: 未使用のため削除 (StudyCard内で使用)
   } = useStore()
 
   const cardSetId = activeCardSetIds[0] || ""
@@ -33,9 +33,10 @@ export const StudySession = () => {
       try {
         const id = await startStudySession()
         setSessionId(id)
-        setSessionStartTime(new Date())
+        // setSessionStartTime(new Date()) // ESLint修正: sessionStartTime は未使用
         setCardStartTime(new Date())
-      } catch (error) {
+      } catch (err) { // ESLint修正: error -> err, console.error追加
+        console.error("Failed to initialize study session:", err);
         toast({
           title: "エラー",
           description: "学習セッションの開始に失敗しました",
@@ -88,7 +89,8 @@ export const StudySession = () => {
         description: isCorrect ? "よくできました！" : "次回はがんばりましょう",
         variant: isCorrect ? "default" : "destructive",
       })
-    } catch (error) {
+    } catch (err) { // ESLint修正: error -> err, console.error追加
+      console.error("Failed to record answer:", err);
       toast({
         title: "エラー",
         description: "回答の記録に失敗しました",

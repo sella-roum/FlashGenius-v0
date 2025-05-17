@@ -11,6 +11,7 @@ export interface Flashcard {
   backImage?: string
   hint?: string
   details?: string
+  cardSetId?: string; // ESLint修正: store.tsでの使用のため追加
   // 学習進捗関連のフィールドを追加
   learningStatus: "new" | "learning" | "mastered"
   lastReviewed?: Date
@@ -71,24 +72,23 @@ export interface LibraryState {
 }
 
 export interface StudyState {
-  activeCardSetIds: string[]
-  originalDeck: Flashcard[]
-  currentDeck: Flashcard[]
-  currentCardIndex: number
-  currentCard: Flashcard | null
-  isFrontVisible: boolean
-  currentHint: string | null
-  isHintLoading: boolean
-  currentDetails: string | null
-  isDetailsLoading: boolean
-  error: string | null
-  // 学習進捗関連のフィールドを追加
-  sessionStartTime: Date | null
+  activeCardSetIds: string[];
+  originalDeck: Flashcard[];
+  currentDeck: Flashcard[];
+  currentCardIndex: number;
+  currentCard: Flashcard | null;
+  isFrontVisible: boolean;
+  currentHint: string | undefined; // null から undefined に変更
+  isHintLoading: boolean;
+  currentDetails: string | undefined; // null から undefined に変更
+  isDetailsLoading: boolean;
+  error: string | null;
+  sessionStartTime: Date | null;
   sessionCardResults: {
-    cardId: string
-    result: "correct" | "incorrect" | "skipped"
-    timeSpent: number
-  }[]
+    cardId: string;
+    result: "correct" | "incorrect" | "skipped";
+    timeSpent: number;
+  }[];
 }
 
 // 学習進捗の統計情報
