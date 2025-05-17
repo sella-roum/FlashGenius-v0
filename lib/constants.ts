@@ -43,4 +43,5 @@ export const NAV_LINKS = [
   { href: "/dashboard", label: "ダッシュボード", icon: "LayoutDashboard" },
   { href: "/generate", label: "生成", icon: "PlusCircle" },
   { href: "/library", label: "ライブラリ", icon: "Library" },
+  { href: "/history", label: "学習履歴", icon: "History" },
 ]

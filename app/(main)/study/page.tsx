@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useMemo } from "react" // ESLint修正: useMemo をインポート
+import { useEffect, useMemo, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useStore } from "@/lib/store"
 import { useIndexedDB } from "@/lib/hooks/use-indexed-db"
 import { PageTitle } from "@/components/shared/page-title"
 import { StudySession } from "@/components/features/study/study-session"
+import { StudyResults } from "@/components/features/study/study-results"
 import { FullPageLoading } from "@/components/shared/loading-spinner"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
@@ -14,6 +15,14 @@ import { Button } from "@/components/ui/button"
 export default function StudyPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [sessionCompleted, setSessionCompleted] = useState(false)
+  const [sessionResults, setSessionResults] = useState<{
+    correct: number
+    incorrect: number
+    skipped: number
+    totalTime: number
+  } | null>(null)
+
   // ESLint修正: setIds の初期化を useMemo でラップ
   const setIds = useMemo(() => {
     return searchParams.get("setIds")?.split(",") || []
@@ -23,7 +32,8 @@ export default function StudyPage() {
   const {
     startStudySession,
     resetStudySession,
-    study: { activeCardSetIds, currentDeck, error },
+    finishStudySession,
+    study: { activeCardSetIds, currentDeck, error, sessionCardResults },
   } = useStore()
 
   // 学習セッションの初期化
@@ -58,13 +68,56 @@ export default function StudyPage() {
       }
     }
 
-    initStudySession()
+    if (!sessionCompleted) {
+      initStudySession()
+    }
 
     // クリーンアップ
     return () => {
-      resetStudySession()
+      if (!sessionCompleted) {
+        resetStudySession()
+      }
     }
-  }, [setIds, getCardSetById, startStudySession, resetStudySession])
+  }, [setIds, getCardSetById, startStudySession, resetStudySession, sessionCompleted])
+
+  // セッション完了時の処理
+  const handleSessionComplete = async () => {
+    try {
+      // 結果の集計
+      const correct = sessionCardResults.filter((r) => r.result === "correct").length
+      const incorrect = sessionCardResults.filter((r) => r.result === "incorrect").length
+      const skipped = sessionCardResults.filter((r) => r.result === "skipped").length
+      const totalTime = sessionCardResults.reduce((sum, r) => sum + r.timeSpent, 0)
+
+      // 結果を保存
+      setSessionResults({
+        correct,
+        incorrect,
+        skipped,
+        totalTime,
+      })
+
+      // セッションを完了としてマーク
+      setSessionCompleted(true)
+
+      // データベースに保存
+      await finishStudySession()
+    } catch (error) {
+      console.error("セッション完了処理エラー:", error)
+    }
+  }
+
+  // ライブラリに戻る
+  const handleBackToLibrary = () => {
+    router.push("/library")
+  }
+
+  // 同じセットで再学習
+  const handleRestartSession = () => {
+    setSessionCompleted(false)
+    setSessionResults(null)
+    resetStudySession()
+  }
 
   // セットIDがない場合
   if (setIds.length === 0) {
@@ -85,7 +138,7 @@ export default function StudyPage() {
   }
 
   // 読み込み中
-  if (activeCardSetIds.length === 0 || currentDeck.length === 0) {
+  if (!sessionCompleted && (activeCardSetIds.length === 0 || currentDeck.length === 0)) {
     return <FullPageLoading message="学習セッションを準備中..." />
   }
 
@@ -105,11 +158,27 @@ export default function StudyPage() {
     )
   }
 
+  // セッション完了後の結果表示
+  if (sessionCompleted && sessionResults) {
+    return (
+      <div className="space-y-6">
+        <PageTitle title="学習セッション完了" subtitle="お疲れ様でした！学習結果を確認しましょう。" />
+
+        <StudyResults
+          results={sessionResults}
+          totalCards={currentDeck.length}
+          onBackToLibrary={handleBackToLibrary}
+          onRestartSession={handleRestartSession}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <PageTitle title="学習セッション" subtitle="カードを学習し、知識を定着させましょう。" />
 
-      <StudySession />
+      <StudySession onComplete={handleSessionComplete} />
     </div>
   )
 }

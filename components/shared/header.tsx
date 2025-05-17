@@ -5,13 +5,14 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { NAV_LINKS } from "@/lib/constants"
-import { LayoutDashboard, PlusCircle, Library } from "lucide-react"
+import { LayoutDashboard, PlusCircle, Library, History } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 const iconMap = {
   LayoutDashboard: LayoutDashboard,
   PlusCircle: PlusCircle,
   Library: Library,
+  History: History,
 }
 
 export const Header = () => {

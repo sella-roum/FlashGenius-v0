@@ -3,7 +3,7 @@
 import { create } from "zustand"
 import { immer } from "zustand/middleware/immer"
 import type { CardSet, Flashcard, GenerateState, LibraryState, StudyState, LearningStats } from "@/types"
-import type { StudySession as DbStudySession } from "@/types/progress"; // 型インポート
+import type { StudySession as DbStudySession } from "@/types/progress" // 型インポート
 import { generateId } from "@/lib/utils"
 
 interface Store {
@@ -145,15 +145,20 @@ export const useStore = create<Store>()(
 
         if (inputType === "url") {
           try {
-            const response = await fetch(`/api/fetch-url-content?url=${encodeURIComponent(inputValue)}`)
+            // Jina Reader APIを使用してURLからコンテンツを取得
+            const jinaReaderUrl = `https://r.jina.ai/${encodeURIComponent(inputValue)}`
+            const response = await fetch(`/api/fetch-url-content?url=${encodeURIComponent(jinaReaderUrl)}`)
+
             if (!response.ok) {
               const errorData = await response.json().catch(() => ({ error: "URLからのコンテンツ取得に失敗しました" }))
               throw new Error(errorData.error || "URLからのコンテンツ取得に失敗しました")
             }
+
             const data = await response.json()
             if (!data.content) {
               throw new Error("URLから有効なコンテンツを取得できませんでした")
             }
+
             content = data.content
           } catch (error) {
             throw new Error(
@@ -232,10 +237,26 @@ export const useStore = create<Store>()(
         return state
       }),
 
-    setCardSetName: (name) => set((state) => { state.generate.cardSetName = name; return state }),
-    setCardSetTheme: (theme) => set((state) => { state.generate.cardSetTheme = theme; return state }),
-    setCardSetTags: (tags) => set((state) => { state.generate.cardSetTags = tags; return state }),
-    resetGenerator: () => set((state) => { state.generate = initialGenerateState; return state }),
+    setCardSetName: (name) =>
+      set((state) => {
+        state.generate.cardSetName = name
+        return state
+      }),
+    setCardSetTheme: (theme) =>
+      set((state) => {
+        state.generate.cardSetTheme = theme
+        return state
+      }),
+    setCardSetTags: (tags) =>
+      set((state) => {
+        state.generate.cardSetTags = tags
+        return state
+      }),
+    resetGenerator: () =>
+      set((state) => {
+        state.generate = initialGenerateState
+        return state
+      }),
 
     // Library Actions
     setAllCardSets: (cardSets) =>
@@ -250,8 +271,16 @@ export const useStore = create<Store>()(
         return state
       }),
 
-    setAvailableThemes: (themes) => set((state) => { state.library.availableThemes = themes; return state }),
-    setAvailableTags: (tags) => set((state) => { state.library.availableTags = tags; return state }),
+    setAvailableThemes: (themes) =>
+      set((state) => {
+        state.library.availableThemes = themes
+        return state
+      }),
+    setAvailableTags: (tags) =>
+      set((state) => {
+        state.library.availableTags = tags
+        return state
+      }),
 
     setFilterTheme: (theme) =>
       set((state) => {
@@ -285,7 +314,8 @@ export const useStore = create<Store>()(
         const { allCardSets, filterTheme } = state.library
         state.library.filteredCardSets = allCardSets.filter((cardSet) => {
           const matchesTheme = !filterTheme || cardSet.theme === filterTheme
-          const matchesTags = state.library.filterTags.length === 0 || state.library.filterTags.every((t) => cardSet.tags.includes(t))
+          const matchesTags =
+            state.library.filterTags.length === 0 || state.library.filterTags.every((t) => cardSet.tags.includes(t))
           return matchesTheme && matchesTags
         })
         return state
@@ -302,8 +332,8 @@ export const useStore = create<Store>()(
     // Study Actions
     startStudySession: (cardSetIds, cards) =>
       set((state) => {
-        const primaryCardSetId = cardSetIds[0];
-        const cardsWithSetId = cards.map(card => ({ ...card, cardSetId: primaryCardSetId }));
+        const primaryCardSetId = cardSetIds[0]
+        const cardsWithSetId = cards.map((card) => ({ ...card, cardSetId: primaryCardSetId }))
         const shuffledCards = [...cardsWithSetId].sort(() => Math.random() - 0.5)
         state.study = {
           ...initialStudyState,
@@ -318,7 +348,11 @@ export const useStore = create<Store>()(
         return state
       }),
 
-    flipCard: () => set((state) => { state.study.isFrontVisible = !state.study.isFrontVisible; return state }),
+    flipCard: () =>
+      set((state) => {
+        state.study.isFrontVisible = !state.study.isFrontVisible
+        return state
+      }),
 
     nextCard: () =>
       set((state) => {
@@ -348,10 +382,16 @@ export const useStore = create<Store>()(
       const { currentCard } = get().study
       if (!currentCard) return
       if (currentCard.hint) {
-        set((state) => { state.study.currentHint = currentCard.hint; return state })
+        set((state) => {
+          state.study.currentHint = currentCard.hint
+          return state
+        })
         return
       }
-      set((state) => { state.study.isHintLoading = true; return state })
+      set((state) => {
+        state.study.isHintLoading = true
+        return state
+      })
       try {
         const response = await fetch("/api/generate-hint", {
           method: "POST",
@@ -381,16 +421,26 @@ export const useStore = create<Store>()(
       }
     },
 
-    hideHint: () => set((state) => { state.study.currentHint = undefined; return state }), // TypeScriptエラー(ts2322)修正
+    hideHint: () =>
+      set((state) => {
+        state.study.currentHint = undefined
+        return state
+      }), // TypeScriptエラー(ts2322)修正
 
     fetchDetails: async () => {
       const { currentCard } = get().study
       if (!currentCard) return
       if (currentCard.details) {
-        set((state) => { state.study.currentDetails = currentCard.details; return state })
+        set((state) => {
+          state.study.currentDetails = currentCard.details
+          return state
+        })
         return
       }
-      set((state) => { state.study.isDetailsLoading = true; return state })
+      set((state) => {
+        state.study.isDetailsLoading = true
+        return state
+      })
       try {
         const response = await fetch("/api/generate-details", {
           method: "POST",
@@ -420,7 +470,11 @@ export const useStore = create<Store>()(
       }
     },
 
-    hideDetails: () => set((state) => { state.study.currentDetails = undefined; return state }), // TypeScriptエラー(ts2322)修正
+    hideDetails: () =>
+      set((state) => {
+        state.study.currentDetails = undefined
+        return state
+      }), // TypeScriptエラー(ts2322)修正
 
     shuffleDeck: () =>
       set((state) => {
@@ -434,7 +488,11 @@ export const useStore = create<Store>()(
         return state
       }),
 
-    resetStudySession: () => set((state) => { state.study = initialStudyState; return state }),
+    resetStudySession: () =>
+      set((state) => {
+        state.study = initialStudyState
+        return state
+      }),
 
     markCardResult: (result) =>
       set((state) => {
@@ -468,7 +526,10 @@ export const useStore = create<Store>()(
             cardResults: filteredResults,
           })
         }
-        set((state) => { state.study = initialStudyState; return state })
+        set((state) => {
+          state.study = initialStudyState
+          return state
+        })
       } catch (error) {
         console.error("学習セッションの保存に失敗しました:", error)
         throw error
@@ -478,74 +539,80 @@ export const useStore = create<Store>()(
     getCardSetStats: async (cardSetId) => {
       try {
         // @ts-expect-error - IndexedDBの関数は動的にインポートされるため、型推論が難しい場合がある。必要に応じて型アサーションを検討。
-        const { getCardSetStats: getDbCardSetStats, getStudySessions } = await import("@/lib/indexed-db");
+        const { getCardSetStats: getDbCardSetStats, getStudySessions } = await import("@/lib/indexed-db")
 
-        const stats = await getDbCardSetStats(cardSetId);
-        const sessions: DbStudySession[] = await getStudySessions(cardSetId);
+        const stats = await getDbCardSetStats(cardSetId)
+        const sessions: DbStudySession[] = await getStudySessions(cardSetId)
 
-        let streak = 0;
-        let lastDateForStreak: Date | null = null;
+        let streak = 0
+        let lastDateForStreak: Date | null = null
 
         if (sessions.length > 0) {
-          const sortedSessions = [...sessions].sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime()); // completedAt を使用
-          if (sortedSessions[0].completedAt) { // completedAt が null でないことを確認
-            lastDateForStreak = new Date(sortedSessions[0].completedAt);
+          const sortedSessions = [...sessions].sort(
+            (a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime(),
+          ) // completedAt を使用
+          if (sortedSessions[0].completedAt) {
+            // completedAt が null でないことを確認
+            lastDateForStreak = new Date(sortedSessions[0].completedAt)
           }
 
-
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const yesterday = new Date(today);
-          yesterday.setDate(yesterday.getDate() - 1);
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const yesterday = new Date(today)
+          yesterday.setDate(yesterday.getDate() - 1)
 
           if (lastDateForStreak) {
-            const lastStudyDateForStreak = new Date(lastDateForStreak);
-            lastStudyDateForStreak.setHours(0, 0, 0, 0);
+            const lastStudyDateForStreak = new Date(lastDateForStreak)
+            lastStudyDateForStreak.setHours(0, 0, 0, 0)
 
-            if (lastStudyDateForStreak.getTime() === today.getTime() || lastStudyDateForStreak.getTime() === yesterday.getTime()) {
-              streak = 1;
-              let currentDate = yesterday;
+            if (
+              lastStudyDateForStreak.getTime() === today.getTime() ||
+              lastStudyDateForStreak.getTime() === yesterday.getTime()
+            ) {
+              streak = 1
+              let currentDate = yesterday
               for (let i = 1; i < sortedSessions.length; i++) {
-                if (sortedSessions[i].completedAt) { // completedAt が null でないことを確認
-                    const sessionDate = new Date(sortedSessions[i].completedAt!);
-                    sessionDate.setHours(0, 0, 0, 0);
-                    const prevDate = new Date(currentDate);
-                    prevDate.setDate(prevDate.getDate() - 1);
-                    if (sessionDate.getTime() === prevDate.getTime()) {
-                        streak++;
-                        currentDate = prevDate;
-                    } else if (sessionDate.getTime() > prevDate.getTime()) {
-                        // 同じ日に複数のセッションがある場合や、日付が飛んでいるがストリークが継続する場合の考慮（必要に応じて）
-                        // このロジックでは単純に前日でない場合はストリーク終了
-                    }
-                    else {
-                        break;
-                    }
+                if (sortedSessions[i].completedAt) {
+                  // completedAt が null でないことを確認
+                  const sessionDate = new Date(sortedSessions[i].completedAt!)
+                  sessionDate.setHours(0, 0, 0, 0)
+                  const prevDate = new Date(currentDate)
+                  prevDate.setDate(prevDate.getDate() - 1)
+                  if (sessionDate.getTime() === prevDate.getTime()) {
+                    streak++
+                    currentDate = prevDate
+                  } else if (sessionDate.getTime() > prevDate.getTime()) {
+                    // 同じ日に複数のセッションがある場合や、日付が飛んでいるがストリークが継続する場合の考慮（必要に応じて）
+                    // このロジックでは単純に前日でない場合はストリーク終了
+                  } else {
+                    break
+                  }
                 }
               }
             }
           }
         }
 
-        const totalTime = sessions.reduce((sum, session) => sum + session.totalTimeSpent, 0);
-        const totalCards = sessions.reduce((sum, session) => sum + session.cardsReviewed, 0);
-        const averageTimePerCard = totalCards > 0 ? totalTime / totalCards : 0;
+        const totalTime = sessions.reduce((sum, session) => sum + session.totalTimeSpent, 0)
+        const totalCards = sessions.reduce((sum, session) => sum + session.cardsReviewed, 0)
+        const averageTimePerCard = totalCards > 0 ? totalTime / totalCards : 0
 
-        const dailyGoal = 10;
-        const todayForGoal = new Date();
-        todayForGoal.setHours(0, 0, 0, 0);
+        const dailyGoal = 10
+        const todayForGoal = new Date()
+        todayForGoal.setHours(0, 0, 0, 0)
 
         const todaySessions = sessions.filter((session) => {
-          if (session.completedAt) { // completedAt が null でないことを確認
-            const sessionDate = new Date(session.completedAt);
-            sessionDate.setHours(0, 0, 0, 0);
-            return sessionDate.getTime() === todayForGoal.getTime();
+          if (session.completedAt) {
+            // completedAt が null でないことを確認
+            const sessionDate = new Date(session.completedAt)
+            sessionDate.setHours(0, 0, 0, 0)
+            return sessionDate.getTime() === todayForGoal.getTime()
           }
-          return false;
-        });
+          return false
+        })
 
-        const todayCards = todaySessions.reduce((sum, session) => sum + session.cardsReviewed, 0);
-        const dailyGoalMet = todayCards >= dailyGoal;
+        const todayCards = todaySessions.reduce((sum, session) => sum + session.cardsReviewed, 0)
+        const dailyGoalMet = todayCards >= dailyGoal
 
         return {
           totalReviews: stats.totalReviews,
@@ -558,11 +625,11 @@ export const useStore = create<Store>()(
           lastStudyDate: stats.lastStudyDate, // `stats` から取得する想定
           studyStreak: streak,
           dailyGoalMet,
-        };
+        }
       } catch (error) {
-        console.error("統計情報の取得に失敗しました:", error);
-        throw error;
+        console.error("統計情報の取得に失敗しました:", error)
+        throw error
       }
     },
   })),
-);
+)

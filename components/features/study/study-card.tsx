@@ -9,7 +9,13 @@ import { HelpCircle, Info, RefreshCw, CheckCircle, XCircle, SkipForward } from "
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 
-export const StudyCard = () => {
+interface StudyCardProps {
+  onCorrect: () => void
+  onIncorrect: () => void
+  onSkip: () => void
+}
+
+export const StudyCard = ({ onCorrect, onIncorrect, onSkip }: StudyCardProps) => {
   const [activeTab, setActiveTab] = useState<string>("card")
 
   const {
@@ -19,30 +25,10 @@ export const StudyCard = () => {
     hideHint,
     fetchDetails,
     hideDetails,
-    markCardResult,
-    nextCard,
   } = useStore()
 
   if (!currentCard) {
     return <div>カードが見つかりません</div>
-  }
-
-  // 正解ボタンのハンドラー
-  const handleCorrect = () => {
-    markCardResult("correct")
-    nextCard()
-  }
-
-  // 不正解ボタンのハンドラー
-  const handleIncorrect = () => {
-    markCardResult("incorrect")
-    nextCard()
-  }
-
-  // スキップボタンのハンドラー
-  const handleSkip = () => {
-    markCardResult("skipped")
-    nextCard()
   }
 
   return (
@@ -78,21 +64,25 @@ export const StudyCard = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-2">
                 <Button
-                  onClick={handleIncorrect}
+                  onClick={onIncorrect}
                   variant="outline"
-                  className="bg-red-50 hover:bg-red-100 border-red-200"
+                  className="bg-red-50 hover:bg-red-100 border-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:border-red-800"
                 >
                   <XCircle className="mr-2 h-5 w-5 text-red-500" />
                   不正解
                 </Button>
-                <Button onClick={handleSkip} variant="outline">
+                <Button
+                  onClick={onSkip}
+                  variant="outline"
+                  className="bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/40 dark:hover:bg-gray-800/60"
+                >
                   <SkipForward className="mr-2 h-5 w-5" />
                   スキップ
                 </Button>
                 <Button
-                  onClick={handleCorrect}
+                  onClick={onCorrect}
                   variant="outline"
-                  className="bg-green-50 hover:bg-green-100 border-green-200"
+                  className="bg-green-50 hover:bg-green-100 border-green-200 dark:bg-green-900/20 dark:hover:bg-green-900/30 dark:border-green-800"
                 >
                   <CheckCircle className="mr-2 h-5 w-5 text-green-500" />
                   正解

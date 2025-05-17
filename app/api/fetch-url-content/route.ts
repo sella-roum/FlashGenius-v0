@@ -8,34 +8,32 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // 直接URLからコンテンツを取得する方法に変更
-    const response = await fetch(url, {
+    // Jina Reader APIを使用してコンテンツを取得
+    const jinaReaderUrl = `https://r.jina.ai/${encodeURIComponent(url)}`
+
+    console.log(`Jina Reader APIにリクエスト: ${jinaReaderUrl}`)
+
+    const response = await fetch(jinaReaderUrl, {
       headers: {
+        Accept: "text/plain",
         "User-Agent": "Mozilla/5.0 (compatible; FlashGenius/1.0; +https://flashgenius.app)",
       },
     })
 
     if (!response.ok) {
-      throw new Error(`URLからのコンテンツ取得に失敗しました: ${response.status}`)
+      const errorText = await response.text()
+      console.error(`Jina Reader APIエラー (${response.status}): ${errorText}`)
+      throw new Error(`Jina Reader APIからのコンテンツ取得に失敗しました: ${response.status}`)
     }
 
-    // レスポンスのContent-Typeをチェック
-    const contentType = response.headers.get("Content-Type") || ""
+    // Jina Readerはテキストとしてコンテンツを返す
+    const content = await response.text()
 
-    let content = ""
-
-    if (contentType.includes("application/json")) {
-      // JSONの場合
-      const data = await response.json()
-      content = JSON.stringify(data)
-    } else if (contentType.includes("text/html")) {
-      // HTMLの場合、シンプルなテキスト抽出を行う
-      const html = await response.text()
-      content = extractTextFromHTML(html)
-    } else {
-      // その他のテキスト形式
-      content = await response.text()
+    if (!content || content.trim() === "") {
+      throw new Error("URLから有効なコンテンツを取得できませんでした")
     }
+
+    console.log(`Jina Reader APIからコンテンツを取得: ${content.substring(0, 100)}...`)
 
     return NextResponse.json({ content })
   } catch (error) {
@@ -45,28 +43,4 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     )
   }
-}
-
-// HTMLからテキストを抽出する簡易関数
-function extractTextFromHTML(html: string): string {
-  // スクリプトタグを削除
-  let text = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ")
-
-  // スタイルタグを削除
-  text = text.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ")
-
-  // HTMLタグを削除
-  text = text.replace(/<[^>]*>/g, " ")
-
-  // 連続する空白を1つに置換
-  text = text.replace(/\s+/g, " ")
-
-  // 特殊文字をデコード
-  text = text.replace(/&nbsp;/g, " ")
-  text = text.replace(/&amp;/g, "&")
-  text = text.replace(/&lt;/g, "<")
-  text = text.replace(/&gt;/g, ">")
-  text = text.replace(/&quot;/g, '"')
-
-  return text.trim()
 }

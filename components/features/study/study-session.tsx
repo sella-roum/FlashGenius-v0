@@ -6,22 +6,25 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { StudyCard } from "@/components/features/study/study-card"
-import { ChevronLeft, ChevronRight, Shuffle, CheckCircle, XCircle } from "lucide-react"
+import { ChevronLeft, ChevronRight, Shuffle, Flag } from "lucide-react"
 import { useStudyProgress } from "@/lib/hooks/use-study-progress"
 import { useToast } from "@/hooks/use-toast"
 
-export const StudySession = () => {
+interface StudySessionProps {
+  onComplete: () => void
+}
+
+export const StudySession = ({ onComplete }: StudySessionProps) => {
   const { toast } = useToast()
-  // const [sessionStartTime, setSessionStartTime] = useState<Date>(new Date()) // ESLint修正: 未使用のため削除
   const [cardStartTime, setCardStartTime] = useState<Date>(new Date())
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [isLastCard, setIsLastCard] = useState(false)
 
   const {
-    study: { activeCardSetIds, currentDeck, currentCardIndex, currentCard, isFrontVisible },
+    study: { activeCardSetIds, currentDeck, currentCardIndex, currentCard, isFrontVisible, sessionCardResults },
     nextCard,
     previousCard,
     shuffleDeck,
-    // flipCard, // ESLint修正: 未使用のため削除 (StudyCard内で使用)
   } = useStore()
 
   const cardSetId = activeCardSetIds[0] || ""
@@ -33,10 +36,9 @@ export const StudySession = () => {
       try {
         const id = await startStudySession()
         setSessionId(id)
-        // setSessionStartTime(new Date()) // ESLint修正: sessionStartTime は未使用
         setCardStartTime(new Date())
-      } catch (err) { // ESLint修正: error -> err, console.error追加
-        console.error("Failed to initialize study session:", err);
+      } catch (err) {
+        console.error("Failed to initialize study session:", err)
         toast({
           title: "エラー",
           description: "学習セッションの開始に失敗しました",
@@ -51,7 +53,7 @@ export const StudySession = () => {
 
     return () => {
       // コンポーネントのアンマウント時にセッションを終了
-      if (sessionId && currentSession) {
+      if (sessionId && currentSession && sessionCardResults.length > 0) {
         completeStudySession(sessionId, {
           cardsReviewed: currentSession.cardsReviewed,
           correctAnswers: currentSession.correctAnswers,
@@ -60,12 +62,15 @@ export const StudySession = () => {
         }).catch(console.error)
       }
     }
-  }, [cardSetId, sessionId, startStudySession, completeStudySession, currentSession, toast])
+  }, [cardSetId, sessionId, startStudySession, completeStudySession, currentSession, toast, sessionCardResults])
 
   // カードが変わったときに時間をリセット
   useEffect(() => {
     setCardStartTime(new Date())
-  }, [currentCardIndex])
+
+    // 最後のカードかどうかをチェック
+    setIsLastCard(currentCardIndex === currentDeck.length - 1)
+  }, [currentCardIndex, currentDeck.length])
 
   // 進捗率の計算
   const progress = ((currentCardIndex + 1) / currentDeck.length) * 100
@@ -80,17 +85,22 @@ export const StudySession = () => {
     try {
       await recordCardAnswer(currentCard, isCorrect, timeSpent)
 
-      // 次のカードへ
-      nextCard()
-
       // フィードバックを表示
       toast({
         title: isCorrect ? "正解" : "不正解",
         description: isCorrect ? "よくできました！" : "次回はがんばりましょう",
         variant: isCorrect ? "default" : "destructive",
       })
-    } catch (err) { // ESLint修正: error -> err, console.error追加
-      console.error("Failed to record answer:", err);
+
+      // 最後のカードの場合はセッション完了
+      if (isLastCard) {
+        onComplete()
+      } else {
+        // 次のカードへ
+        nextCard()
+      }
+    } catch (err) {
+      console.error("Failed to record answer:", err)
       toast({
         title: "エラー",
         description: "回答の記録に失敗しました",
@@ -99,54 +109,72 @@ export const StudySession = () => {
     }
   }
 
+  // スキップの処理
+  const handleSkip = async () => {
+    if (!currentCard) return
+
+    const now = new Date()
+    const timeSpent = now.getTime() - cardStartTime.getTime()
+
+    try {
+      // スキップとして記録
+      await recordCardAnswer(currentCard, false, timeSpent)
+
+      // 最後のカードの場合はセッション完了
+      if (isLastCard) {
+        onComplete()
+      } else {
+        // 次のカードへ
+        nextCard()
+      }
+    } catch (err) {
+      console.error("Failed to record skip:", err)
+      toast({
+        title: "エラー",
+        description: "スキップの記録に失敗しました",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // セッション完了
+  const handleCompleteSession = () => {
+    onComplete()
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           {currentCardIndex + 1} / {currentDeck.length}
         </div>
-        <Button variant="outline" size="sm" onClick={shuffleDeck}>
-          <Shuffle className="mr-2 h-4 w-4" />
-          シャッフル
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={shuffleDeck}>
+            <Shuffle className="mr-2 h-4 w-4" />
+            シャッフル
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleCompleteSession}>
+            <Flag className="mr-2 h-4 w-4" />
+            終了
+          </Button>
+        </div>
       </div>
 
       <Progress value={progress} className="h-2" />
 
       <Card className="p-6">
-        <StudyCard />
+        <StudyCard onCorrect={() => handleAnswer(true)} onIncorrect={() => handleAnswer(false)} onSkip={handleSkip} />
       </Card>
 
-      {!isFrontVisible && (
-        <div className="flex justify-center gap-4">
-          <Button
-            variant="outline"
-            className="flex-1 border-red-500 hover:bg-red-500/10"
-            onClick={() => handleAnswer(false)}
-          >
-            <XCircle className="mr-2 h-5 w-5 text-red-500" />
-            不正解
-          </Button>
-          <Button
-            variant="outline"
-            className="flex-1 border-green-500 hover:bg-green-500/10"
-            onClick={() => handleAnswer(true)}
-          >
-            <CheckCircle className="mr-2 h-5 w-5 text-green-500" />
-            正解
-          </Button>
-        </div>
-      )}
-
       <div className="flex justify-between">
-        <Button variant="outline" onClick={previousCard} disabled={currentDeck.length <= 1}>
+        <Button variant="outline" onClick={previousCard} disabled={currentDeck.length <= 1 || currentCardIndex === 0}>
           <ChevronLeft className="mr-2 h-5 w-5" />
           前へ
         </Button>
 
-        <Button onClick={nextCard} disabled={currentDeck.length <= 1}>
-          次へ
-          <ChevronRight className="ml-2 h-5 w-5" />
+        <Button onClick={isLastCard ? handleCompleteSession : nextCard} disabled={currentDeck.length <= 1}>
+          {isLastCard ? "完了" : "次へ"}
+          {!isLastCard && <ChevronRight className="ml-2 h-5 w-5" />}
         </Button>
       </div>
     </div>

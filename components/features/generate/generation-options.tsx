@@ -6,13 +6,23 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { InfoIcon } from "lucide-react"
 import { CARD_TYPE_OPTIONS, LANGUAGE_OPTIONS } from "@/lib/constants"
 
 export const GenerationOptions = () => {
   const {
-    generate: { generationOptions },
+    generate: { generationOptions, inputType, inputValue },
     setGenerationOptions,
   } = useStore()
+
+  // 入力内容のプレビュー（最初の100文字）
+  const inputPreview =
+    inputValue && typeof inputValue === "string"
+      ? inputValue.length > 100
+        ? inputValue.substring(0, 100) + "..."
+        : inputValue
+      : ""
 
   return (
     <Card>
@@ -20,6 +30,20 @@ export const GenerationOptions = () => {
         <CardTitle>生成オプション</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* 現在の入力内容 */}
+        {inputType && inputValue && (
+          <Alert className="bg-primary/5 border-primary/20">
+            <InfoIcon className="h-4 w-4 text-primary" />
+            <AlertDescription className="text-sm">
+              <span className="font-medium">現在の入力: </span>
+              {inputType === "text" && "直接入力されたテキスト"}
+              {inputType === "url" && <span className="text-blue-500 underline">{inputValue}</span>}
+              {inputType === "file" && "アップロードされたファイル"}
+              {inputType === "text" && <div className="mt-1 text-muted-foreground text-xs">{inputPreview}</div>}
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="space-y-2">
           <Label>カードタイプ</Label>
           <RadioGroup
